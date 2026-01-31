@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import os
 import rawpy
-import torch
+import torch  # 必须导入 torch 用于检测显卡
 
 # ================= 配置区域 =================
 MODEL_PATH = 'yolov8x-seg.pt' 
@@ -37,27 +37,21 @@ def load_best_available_image(path):
 
 class BirdDetector:
     def __init__(self):
-        # 1. 自动检测运行设备
+        # 1. 恢复自动检测 (不再强制 CPU)
         if torch.cuda.is_available():
             self.device = 'cuda:0'
+            gpu_name = torch.cuda.get_device_name(0)
             print(f"正在加载分割 AI 模型: {MODEL_PATH}")
-            print(f"🚀 运行模式: GPU ({torch.cuda.get_device_name(0)})")
+            print(f"🚀 运行模式: GPU ({gpu_name}) | FP16半精度: 开启")
         else:
             self.device = 'cpu'
             print(f"正在加载分割 AI 模型: {MODEL_PATH}")
-            print(f"⚠️ 运行模式: CPU (未检测到显卡)")
+            print(f"⚠️ 运行模式: CPU (未检测到 PyTorch 兼容显卡)")
         
         self.model = YOLO(MODEL_PATH)
         self.target_class_id = 14 
 
     def detect_and_crop(self, high_res_img, output_scale=1.0, standard_size=None, shrink_ratio=0.0, mask_background=True):
-        """
-        核心检测与裁切函数 (新增 mask_background 参数)
-        
-        参数:
-            mask_background (bool): 是否将非鸟类区域(背景)涂黑？
-                                    开启后可彻底消除前景树叶对清晰度评分的干扰。
-        """
         if high_res_img is None: return None, None
 
         # 1. 降采样推理
@@ -71,13 +65,15 @@ class BirdDetector:
             scale_factor = 1.0
 
         # 2. AI 识别
+        # 动态决定是否开启半精度 (GPU开，CPU关)
         use_half = (self.device != 'cpu')
+
         results = self.model(
             inference_img, 
             verbose=False, 
             agnostic_nms=True,
             device=self.device, 
-            half=use_half,       
+            half=use_half,       # GPU 下开启 FP16 提速
             retina_masks=True
         )
         
@@ -88,7 +84,7 @@ class BirdDetector:
 
         # 3. 智能坐标优化 & 蒙版生成
         if mask_segments is not None and len(mask_segments) > 0:
-            segments = mask_segments # 小图上的轮廓点
+            segments = mask_segments
             
             # (A) 计算紧致框
             min_x = np.min(segments[:, 0])
@@ -97,28 +93,22 @@ class BirdDetector:
             max_y = np.max(segments[:, 1])
             box_small = [min_x, min_y, max_x, max_y]
             
-            # (B) 像素级抠图 (关键步骤)
+            # (B) 像素级抠图
             if mask_background:
-                # 将轮廓点映射回原图尺寸
                 segments_high_res = segments / scale_factor
                 segments_high_res = segments_high_res.astype(np.int32)
                 
-                # 创建全黑遮罩
                 mask = np.zeros((h, w), dtype=np.uint8)
-                # 填充多边形区域为白色
                 cv2.fillPoly(mask, [segments_high_res], 255)
                 
-                # [新增] 腐蚀遮罩：向内收缩以去除边缘背景残留
-                # 动态计算核大小 (约占图像短边的 0.65%)
-                # 例如 5000px 的图，腐蚀约 40px，足以切掉边缘的虚边
-                erosion_size = max(3, int(min(h, w) * 0.0065)) 
+                # 腐蚀遮罩
+                erosion_size = max(3, int(min(h, w) * 0.002)) 
                 kernel = np.ones((erosion_size, erosion_size), np.uint8)
                 mask = cv2.erode(mask, kernel, iterations=1)
                 
-                # 应用遮罩：保留白色区域(鸟)，背景变黑
                 high_res_img = cv2.bitwise_and(high_res_img, high_res_img, mask=mask)
 
-        # 4. 映射回原图坐标 (Upscaling)
+        # 4. 映射回原图坐标
         x1, y1, x2, y2 = box_small
         
         real_x1 = max(0, int(x1 / scale_factor))
@@ -129,7 +119,6 @@ class BirdDetector:
         box_in_original = [real_x1, real_y1, real_x2, real_y2]
 
         # 5. 裁切 ROI
-        # 注意：如果 mask_background=True，这里的 ROI 背景已经是纯黑的了
         roi = high_res_img[real_y1:real_y2, real_x1:real_x2]
         
         if roi.size == 0: return None, None
@@ -167,11 +156,11 @@ class BirdDetector:
                 if cls_id == self.target_class_id and conf > CONFIDENCE_THRESHOLD:
                     if conf > max_conf:
                         max_conf = conf
-                        # 注意：GPU tensor 需转回 CPU
+                        # 关键：GPU 模式下 tensor 在显存里，必须 .cpu() 搬回内存才能转 numpy
                         best_box = box.xyxy[0].cpu().numpy().astype(float)
                         if masks is not None:
                             try:
-                                best_segments = masks.xy[i] # 这是一个 numpy 数组
+                                best_segments = masks.xy[i]
                             except:
                                 best_segments = None
         return best_box, best_segments
