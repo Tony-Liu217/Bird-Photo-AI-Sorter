@@ -8,6 +8,37 @@
 
 本项目是一个基于 **深度学习 (Deep Learning)** 和 **计算机视觉 (Computer Vision)** 的自动化筛选工具。它能自动识别鸟类主体，剔除背景干扰，利用物理光学的频域分析算法评估锐度，并使用机器学习模型将照片自动分类。
 
+## **✨ 目录结构**
+
+📂 File Structure / 文件结构本项目核心代码由以下几个模块组成，各司其职：.
+├── batch_processor_GPU_optimize.py    # [🚀 主程序] 生产环境入口。运行此文件开始批量筛选照片。
+│                                      # 包含全流程逻辑：加载 -> 识别 -> 特征提取 -> 分类 -> 归档/标注。
+│
+├── detect_birds_multi_maskenabled.py  # [👁️ 视觉核心] 封装了 YOLOv8 实例分割逻辑。
+│                                      # 负责图像的智能裁切、Mask 生成以及背景像素剔除。
+│
+├── data_labler.py                     # [🏷️ 标记工具] 用于人工构建"真值数据"。
+│                                      # 提供快捷键交互界面，帮助用户快速将照片标记为 Trash/Soft/Perfect。
+│
+├── train_classifier_GPU.py            # [🧠 训练中心] 用于训练专属 AI 模型。
+│                                      # 读取标记数据，利用 GPU 加速提取特征，并训练随机森林分类器。
+│
+├── best_bird_model_multiclass.pkl     # [💾 模型文件] 训练好的随机森林分类器权重。
+│                                      # 主程序运行时会直接加载此文件进行推理。
+│
+├── .gitignore                         # Git 忽略配置，防止上传临时文件或过大的 PyTorch 模型。
+└── README.md                          # 项目说明文档。
+🔧 模块调用关系 (Module Dependency)batch_processor_GPU_optimize.py 依赖于：detect_birds_multi_maskenabled.py (用于看)best_bird_model_multiclass.pkl (用于想)train_classifier_GPU.py 运行后生成：best_bird_model_multiclass.pkl
+---
+
+### 💡 给您的微调建议
+
+您可以检查一下代码中的 `import` 语句，确保文件名变更后引用依然正确。例如，在 `batch_processor_GPU_optimize.py` 和 `train_classifier_GPU.py` 的开头，导入模块的部分应该是：
+
+```python
+# 确保 import 的名字和您截图中的文件名一致
+from detect_birds_multi_maskenabled import BirdDetector, load_best_available_image
+
 ## **✨ 核心特性**
 
 * **⚡ 全流程 GPU 加速**：基于 PyTorch Tensor 的批量化处理架构。利用 RTX 显卡进行并行的 FFT（傅里叶变换）和梯度计算，吞吐量极高。  
