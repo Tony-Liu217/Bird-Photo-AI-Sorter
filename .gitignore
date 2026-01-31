@@ -1,0 +1,24 @@
+# Python 缓存
+__pycache__/
+*.py[cod]
+
+# 虚拟环境 (如果有)
+venv/
+.env
+
+# 大型模型文件 (避免上传太大的文件)
+*.pt
+*.onnx
+
+# 临时文件
+.DS_Store
+*.csv
+
+# 你的输出结果文件夹 (建议忽略，除非你想展示样例)
+Trash/
+Soft/
+Perfect/
+Unidentified/
+
+# VS Code 设置
+.vscode/
