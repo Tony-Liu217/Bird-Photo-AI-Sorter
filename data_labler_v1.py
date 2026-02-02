@@ -3,7 +3,7 @@ import cv2
 import csv
 import tkinter as tk
 from tkinter import filedialog
-from detect_birds_multi_maskenabled import BirdDetector, load_best_available_image
+from detect_birds_single_maskenabled import BirdDetector, load_best_available_image
 
 # 必须与主程序保持一致
 ROI_STANDARD_SIZE = 1600

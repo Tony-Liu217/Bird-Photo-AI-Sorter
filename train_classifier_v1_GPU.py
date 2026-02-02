@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.metrics import classification_report, accuracy_score, f1_score
 
 # 引入核心模块
-from detect_birds_multi_maskenabled import BirdDetector, load_best_available_image
+from detect_birds_single_maskenabled import BirdDetector, load_best_available_image
 
 # ================= 配置区域 =================
 ROI_STANDARD_SIZE = 1600

@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from concurrent.futures import ThreadPoolExecutor
 
 # 引入核心模块
-from detect_birds_multi_maskenabled import BirdDetector, load_best_available_image
+from detect_birds_single_maskenabled import BirdDetector, load_best_available_image
 
 # ================= 极速版配置 =================
 ROI_STANDARD_SIZE = 1600
