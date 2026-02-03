@@ -1,154 +1,131 @@
-# **🦅 鸟类摄影 AI 自动筛选工具 (Bird Photo AI Sorter) v1.0**
+# **🦅 Bird Photo AI Sorter v2.1.0**
+
+**The Ultimate AI Culling Tool for Bird Photographers.**
 
 **告别“数毛”焦虑，让 AI 帮你从数千张连拍中挑出最锐利的瞬间。**
 
-## **📖 项目简介 / About This Project**
+## **📖 简介 / Introduction**
 
-对于生态摄影师（特别是“打鸟”爱好者）来说，按一次快门可能意味着数十张连拍。一次拍摄回来，面对硬盘里数千张 RAW 格式的鸟类照片，人工筛选合焦准确、羽毛清晰的“数毛片”是一项巨大且枯燥的工程。
+**Bird Photo AI Sorter** 是专为生态摄影师打造的智能化后期筛选工具。针对鸟类摄影中“高速连拍、景深极浅、背景杂乱”的痛点，它利用计算机视觉与机器学习技术，实现像素级的锐度分析与自动化分类。
 
-**Bird Photo AI Sorter** 是一个基于 **深度学习 (Deep Learning)** 和 **计算机视觉 (Computer Vision)** 的自动化筛选工具。它能自动识别鸟类主体，物理剔除背景干扰，利用物理光学的频域分析算法评估锐度，并使用机器学习模型将照片自动分类。
+**v2.1.0 版本里程碑 (Milestone)**：
 
-## **✨ 核心特性 / Key Features**
+引入了 **"Dual-Engine" (双引擎)** 架构与 **"Mask-Aware V9"** 特征集。不仅解决了最新显卡（如 RTX 5060）的驱动兼容性问题，更通过引入高斯差分（DoG）和信噪比代理（SNR Proxy），显著提升了对高感光度（High ISO）噪点图的识别能力。
 
-### **1\. 🎯 像素级精准识别 (Mask-Aware)**
+## **✨ 核心特性 / Key Features (v2.1.0)**
 
-采用 **YOLOv8-Instance Segmentation** 模型，不仅能框出鸟，还能生成**像素级蒙版（Mask）**。系统会将非鸟类区域（如锐利的前景树叶、树枝）强制涂黑，并进行边缘腐蚀，彻底防止背景干扰导致的误判。
+### **1\. 🚀 双引擎混合架构 (Dual-Engine Architecture)**
 
-### **2\. ⚡ 全流程 GPU 加速**
+* **Auto-Switching**: 程序启动时自动检测硬件环境。  
+  * **GPU 模式**: 检测到 NVIDIA 显卡时，利用 PyTorch CUDA 进行极速批量张量运算 (FFT/Sobel)。  
+  * **CPU 模式**: 无显卡或驱动冲突时（如 Hyper-V 蓝屏问题），自动无缝切换至 OpenCV/NumPy 引擎，保证 **100% 稳定运行**。  
+* **Consistency**: 严格对齐了 CPU 与 GPU 的数学逻辑，确保两套引擎输出的特征向量高度一致。
 
-基于 PyTorch Tensor Batch 架构构建。利用 NVIDIA 显卡（支持 RTX 40/50 系列）并行加载、解码并分析批量 RAW 格式照片。
+### **2\. 🎯 V9 掩膜感知特征 (Mask-Aware V9 Features)**
 
-* **特性**：动态半精度推理 (FP16) \+ 多线程 IO 读取，吞吐量极高。
+摒弃了传统的全局梯度评价，采用更符合物理光学的特征组合：
 
-### **3\. 🔬 科学的锐度分析**
+* **Difference of Gaussians (DoG)**: 模拟人眼视觉，通过带通滤波分离“真实纹理”与“随机噪点”。  
+* **SNR Proxy**: 计算结构能量与高频杂讯的比率，有效剔除“假锐利”的噪点废片。  
+* **Pixel-Level Masking**: 利用 **YOLOv8-Seg** 生成鸟类蒙版，并将背景强制涂黑，配合边缘二次腐蚀，彻底消除树枝背景干扰。
 
-摒弃传统的单一梯度评价，引入 **FFT（快速傅里叶变换）** 分析中高频纹理（羽毛）的能量，同时智能过滤高感光度带来的噪点。
+### **3\. 🧠 随机森林三级分类 (Smart Classification)**
 
-* **内部梯度峰值**：只计算鸟类躯干内部最锐利的 5% 像素，区分“微糊”和“极致”。
+基于 **Random Forest** 的非线性分类器，将照片分为三类：
 
-### **4\. 🧠 智能三级分类**
+* **🗑️ Trash (废片)**: 严重跑焦、模糊。  
+* **😐 Soft (部分失焦)**: 缩图可用，但微观反差不足（缓冲区）。  
+* **🏆 Perfect (完美)**: 核心区域（眼睛/羽毛）达到数毛级锐度。
 
-基于 **Random Forest (随机森林)** 分类器，将照片智能分为：
+### **4\. 🔄 人机协同数据闭环 (Human-in-the-loop)**
 
-* **🗑️ Trash (废片)**：严重跑焦，建议直接删除。  
-* **😐 Soft (部分失焦)**：缩图可用，但细节不足，需人工复审。  
-* **🏆 Perfect (完美)**：数毛级锐利，直接出片。
+* **纠错模式**: 支持导出误判报告 (error\_analysis.csv)，并在标记工具中复盘 AI 的判断，修正后重新训练。这让模型能不断适应你的镜头特性和审美标准。
 
-### **5\. 📥 无损工作流 (Lightroom Friendly)**
+### **5\. 📥 Lightroom 无损工作流**
 
-支持生成标准 .xmp 元数据文件。导入 Adobe Lightroom Classic 后自动标记颜色标签（紫/红/绿）和星级，**无需物理移动 RAW 文件**，保护原始资产。
+支持生成 .xmp 元数据文件。
+
+* **Perfect** \-\> 🟢 绿色标签 \+ 5星  
+* **Soft** \-\> 🔴 红色标签 \+ 3星  
+* **Trash** \-\> 🟣 紫色标签 \+ 1星
 
 ## **📂 文件结构 / File Structure**
 
-本项目核心代码由以下几个模块组成：
-
 .  
-├── batch\_processor\_GPU\_optimize.py    \# \[🚀 主程序\] 生产环境入口。运行此文件开始批量筛选照片。  
-│                                      \# 包含全流程逻辑：加载 \-\> 识别 \-\> 特征提取 \-\> 分类 \-\> 归档/标注。  
+├── batch\_processor\_locked\_dual.py     \# \[🚀 生产入口\] 双引擎主程序。自动选择 GPU/CPU 进行批量筛选。  
+├── train\_classifier\_dual.py           \# \[🧠 训练入口\] 双引擎训练程序。支持自动参数寻优 (GridSearch)。  
+├── data\_labler\_loop\_v2.py             \# \[🏷️ 标记工具\] 支持"新图标记"和"误判纠错"双模式。  
 │  
-├── detect\_birds\_multi\_maskenabled.py  \# \[👁️ 视觉核心\] 封装了 YOLOv8 实例分割逻辑。  
-│                                      \# 负责图像的智能裁切、Mask 生成以及背景像素剔除。  
+├── feature\_extractor\_dual.py          \# \[⚙️ 核心算法\] 封装了 V9 特征提取逻辑 (DoG, SNR, Multi-Scale)。  
+├── detect\_birds\_multi\_maskenabled.py  \# \[👁️ 视觉模型\] YOLOv8-Seg 实例分割与蒙版生成。  
+├── metadata\_utils.py                  \# \[ℹ️ 元数据\] 读取 ISO、快门等 EXIF 信息。  
 │  
-├── data\_labler.py                     \# \[🏷️ 标记工具\] 用于人工构建"真值数据"。  
-│                                      \# 提供快捷键交互界面，帮助用户快速将照片标记为 Trash/Soft/Perfect。  
-│  
-├── train\_classifier\_GPU.py            \# \[🧠 训练中心\] 用于训练专属 AI 模型。  
-│                                      \# 读取标记数据，利用 GPU 加速提取特征，并训练随机森林分类器。  
-│  
-├── best\_bird\_model\_multiclass.pkl     \# \[💾 模型文件\] 训练好的随机森林分类器权重。  
-│                                      \# 主程序运行时会直接加载此文件进行推理。  
-│  
-├── .gitignore                         \# Git 忽略配置，防止上传临时文件或过大的 PyTorch 模型。  
-└── README.md                          \# 项目说明文档。
+├── best\_bird\_model\_multiclass.pkl     \# \[💾 权重文件\] 训练好的随机森林模型。  
+├── yolov8x-seg.pt                     \# \[💾 视觉权重\] YOLO 分割模型。  
+└── README.md
 
 ## **🚀 快速开始 / Quick Start**
 
-### **1\. 环境依赖 (Prerequisites)**
+### **1\. 安装依赖 (Installation)**
 
-本项目严重依赖 GPU 计算，请确保安装了 NVIDIA 显卡驱动及 CUDA 支持。
+**基础依赖:**
 
-**安装 PyTorch (针对 RTX 30/40/50 系列推荐 Nightly 版):**
+pip install ultralytics opencv-python numpy scikit-learn tqdm rawpy joblib scipy exifread
 
+**GPU 加速支持 (NVIDIA 显卡用户推荐):**
+
+请前往 [PyTorch 官网](https://pytorch.org/) 复制适合您 CUDA 版本的安装命令。
+
+*(注: RTX 40/50 系列用户建议安装 Nightly 版本以获得最佳兼容性)*
+
+\# 示例 (CUDA 12.x)  
 pip install \--pre torch torchvision torchaudio \--index-url \[https://download.pytorch.org/whl/nightly/cu126\](https://download.pytorch.org/whl/nightly/cu126)
 
-**安装其他依赖库:**
+### **2\. 标准工作流 (Workflow)**
 
-pip install ultralytics opencv-python numpy scikit-learn tqdm rawpy joblib
+#### **第一步：建立基准 (Labeling)**
 
-### **2\. 使用工作流 (Workflow)**
+训练一个懂你的 AI。
 
-#### **第一步：建立标准 (Labeling)**
-
-每个人的镜头素质和对“锐利”的定义不同，建议先训练专属模型。
-
-1. 准备 100-200 张典型照片（包含清晰和模糊的）。  
-2. 运行标记工具：  
-   python data\_labler.py
-
-3. 按键操作：1 (废片), 2 (一般), 3 (完美), ESC (保存退出)。这将生成 labels.csv。
+1. 运行 python data\_labler\_loop\_v2.py。  
+2. 选择 **\[1\] 新图标记**，对约 100-200 张照片进行打分 (1/2/3键)。
 
 #### **第二步：训练模型 (Training)**
 
-利用标记好的数据训练 AI。
-
-1. 运行训练脚本：  
-   python train\_classifier\_GPU.py
-
-2. 程序会自动进行参数寻优，并生成 best\_bird\_model\_multiclass.pkl。
+1. 运行 python train\_classifier\_dual.py。  
+2. 程序会自动调用双引擎提取特征，并进行网格搜索寻找最佳参数。  
+3. 训练完成后会生成 best\_bird\_model\_multiclass.pkl 和误判报告。
 
 #### **第三步：批量筛选 (Sorting)**
 
-开始处理海量照片。
-
-1. 运行主程序：  
-   python batch\_processor\_GPU\_optimize.py
-
+1. 运行 python batch\_processor\_locked\_dual.py。  
 2. 选择模式：  
-   * **\[1\] 整理模式**：将文件物理移动到 Trash, Soft, Perfect 文件夹。  
-   * **\[2\] 标注模式 (推荐)**：生成 .xmp 文件，保持原文件不动。
+   * **\[1\] 整理模式**：物理移动文件。  
+   * **\[2\] 标注模式 (推荐)**：生成 XMP 文件。
 
-## **📥 Lightroom 导入指南**
+## **📊 性能指标 (Benchmark)**
 
-如果您选择了 **\[2\] 标注模式**，请按以下步骤操作：
+基于 v2.1.0 版本在 RTX 5060 Laptop 上的测试数据 (样本量 N=2000)：
 
-1. 在 Lightroom Classic 中导入照片。  
-2. 如果照片已在库中，选中照片 \-\> 右键 \-\> **元数据** \-\> **从文件读取元数据**。  
-3. 查看结果：  
-   * **🟢 绿色标签 (5星)**：Perfect (完美)  
-   * **🔴 红色标签 (3星)**：Soft (待定)  
-   * **🟣 紫色标签 (1星)**：Trash (排除)
+| 类别 | Precision (精确率) | Recall (召回率) | 说明 |
+| :---- | :---- | :---- | :---- |
+| **Trash** | **86%** | **86%** | 极其精准，放心删除。 |
+| **Perfect** | **88%** | **72%** | 只要选出来就是极品，宁缺毋滥。 |
+| **Soft** | **76%** | **83%** | 充当安全缓冲区，防止好片被误删。 |
 
-## **🗺️ 未来优化方向 / Future Roadmap**
+* **推理速度 (GPU)**: \~0.05秒 / 张 (批量模式)  
+* **推理速度 (CPU)**: \~0.8秒 / 张 (多核并行)
 
-目前的 v1.0 版本已经具备生产力，但针对复杂的鸟类摄影场景，我们计划在后续版本中重点攻克以下问题：
+## **🗺️ 路线图 / Roadmap**
 
-### **1\. 优化 "Soft" 中间态的纯净度**
+* \[x\] **v1.0**: 基础功能，单线程 CPU。  
+* \[x\] **v2.0**: 引入 GPU 加速，多目标识别，ISO 感知。  
+* \[x\] **v2.1 (Current)**: 双引擎架构，DoG 降噪特征，Mask-Aware 像素级背景剔除。  
+* \[ \] **v3.0**: 图形化界面 (GUI)，支持拖拽操作与实时预览。  
+* \[ \] **Future**: 引入时序分析，针对连拍组进行“最佳瞬间”择优 (Best-of-Burst)。
 
-* **现状**：目前的 Soft (部分失焦) 组是一个“缓冲区”，其中混杂了画质尚可的片子，也混入了噪点过高或极其轻微跑焦的废片，导致人工复审工作量依然存在。  
-* **计划**：引入更细粒度的特征分析（如色彩噪声分离），或尝试将三分类扩展为五分类（增加 ISO\_High 和 Motion\_Blur 标签），进一步提纯 Soft 组。
+## **🤝 贡献 / Contribution**
 
-### **2\. 增强对“飞版”运动模糊的识别**
+本项目开源于 GitHub: [Tony-Liu217/Bird-Photo-AI-Sorter](https://www.google.com/search?q=https://github.com/Tony-Liu217/Bird-Photo-AI-Sorter)
 
-* **现状**：对于飞行中的鸟类（飞版），算法可能会因为“运动模糊（Motion Blur）”导致的边缘柔化，将其误判为失焦（Soft）甚至废片。但实际上，飞版照片通常允许主体有轻微的动态模糊。  
-* **计划**：引入 **方向性梯度检测 (Directional Gradient)** 或光流法，识别线性的运动模糊，给予飞版照片特定的权重补偿，避免“误杀”精彩的动态瞬间。
-
-### **3\. 提升硬件兼容性**
-
-* **现状**：目前的算法深度绑定 NVIDIA CUDA 生态，严重依赖 GPU 进行 FFT 和 Tensor 运算，无法在 Mac (Metal) 或 AMD 显卡上高效运行。  
-* **计划**：重构推理后端，增加对 ONNX Runtime 或 MPS (Mac) 加速的支持，降低使用门槛。
-
-### **4\. 开发图形化界面 (GUI)**
-
-* **现状**：目前主要通过命令行交互，对非技术用户不够友好。  
-* **计划**：开发基于 PyQt 或 Gradio 的可视化操作界面，支持拖拽文件夹、实时预览 ROI 裁切效果、手动微调阈值以及直观的图表分析。
-
-### **5\. 参数配置与调优流程优化**
-
-* **现状**：核心参数（如 ROI 尺寸、FFT 截止频率）目前硬编码在 Python 文件中，调整不便。  
-* **计划**：  
-  * 引入 config.yaml 配置文件，实现参数与代码分离。  
-  * 开发“一键校准向导”，让用户只需导入几张典型照片，系统自动推荐最佳参数配置。
-
-## **📝 License**
-
-MIT License. Designed for photographers, by photographers.
+欢迎提交 Issue 反馈 Bug，或提交 Pull Request 贡献代码！
