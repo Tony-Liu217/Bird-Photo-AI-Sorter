@@ -49,7 +49,7 @@ class BirdDetector:
         self.model = YOLO(MODEL_PATH)
         self.target_class_id = 14 
 
-    def detect_and_crop_all(self, high_res_img, standard_size=None, mask_background=True, mask_shrink_ratio=0.005):
+    def detect_and_crop_all(self, high_res_img, standard_size=None, mask_background=True, mask_shrink_ratio=0.001):
         """
         [多目标版] 检测并返回所有鸟类的 ROI
         
